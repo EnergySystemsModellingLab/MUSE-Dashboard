@@ -3,6 +3,8 @@ from muse.mca import MCA
 
 class Model:
     def __init__(self, path: str = "server/data/default/settings.toml"):
+
+        # Remove these and make them inputs for individual sessions
         self.path = path
         self.mca = MCA.factory(self.path)
 

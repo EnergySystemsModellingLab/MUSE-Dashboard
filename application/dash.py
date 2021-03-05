@@ -11,7 +11,12 @@ app = dash.Dash(external_stylesheets=[dbc.themes.SKETCHY])
 
 model = Model()
 
-inputs = dbc.Card(
+# path = Path("server") / "data" / "default"
+# list(path.glob("technodata/gas/*"))
+
+# Initially load only the input widgets to upload input data and select output path
+
+inputs = dbc.Card(  # Move this to a callback
     [
         dbc.FormGroup(
             [
@@ -73,15 +78,17 @@ app.layout = dbc.Container(
     [
         html.H1("MUSE Dashboard"),
         html.Hr(),
-        dbc.Col([inputs], align="center", md=4),
+        dbc.Col([inputs], align="left", md=4),
         dbc.Row(
             [
                 dbc.Col(toy_inputs, md=4),
-                dbc.Col(dcc.Graph(id="cluster-graph"), md=8),
+                dbc.Col(
+                    dcc.Graph(id="cluster-graph"),
+                    md=6,
+                ),
             ],
             align="center",
         ),
-        dbc.Alert("Hello, Bootstrap!", color="success"),
     ],
     className="m-5",
     fluid=True,
