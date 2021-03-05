@@ -35,6 +35,31 @@ inputs = dbc.Card(  # Move this to a callback
     body=True,
 )
 
+input_paths = dbc.Card(
+    children=[
+        dbc.FormGroup(
+            [
+                dbc.Label("Select Ouput Folder"),
+                dcc.Input(
+                    id="output-path",
+                    type="text",
+                    placeholder=__file__,
+                ),
+            ]
+        ),
+        dbc.FormGroup(
+            [
+                dbc.Label("Select Model"),
+                dcc.Dropdown(
+                    id="model",
+                    options=[{"label": "default", "value": "default"}],
+                    value="default",
+                ),
+            ]
+        ),
+    ]
+)
+
 toy_inputs = dbc.Card(
     [
         dbc.FormGroup(
@@ -74,10 +99,21 @@ toy_inputs = dbc.Card(
     body=True,
 )
 
+navbar = dbc.Nav(
+    className="nav nav-pills",
+    children=[
+        dbc.NavItem(
+            html.Div([dbc.NavLink("About", href="/", id="about-popover", active=True)])
+        ),
+    ],
+)
+
 app.layout = dbc.Container(
     [
+        navbar,
         html.H1("MUSE Dashboard"),
         html.Hr(),
+        input_paths,
         dbc.Col([inputs], align="left", md=4),
         dbc.Row(
             [
