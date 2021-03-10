@@ -1,27 +1,37 @@
+import pandas as pd
 from muse.mca import MCA
+import muse.examples
+import logging
+
+from settings.config import MODEL_NAMES
+
+logging.getLogger("muse").setLevel(0)
 
 
 class Model:
-    def __init__(self, path: str = "server/data/default/settings.toml"):
+    def __init__(self):
+        self.model: MCA
+        self.names = MODEL_NAMES
 
-        # Remove these and make them inputs for individual sessions
-        self.path = path
-        self.mca = MCA.factory(self.path)
+    def select(self, name: str = "default"):
+        self.model = muse.examples.model(name)
 
     def run(self):
-        self.mca.run()
-
-    def update(self):
-        self.mca = MCA.factory(self.path)
+        self.model.run()
 
     @property
     def sectors(self):
-        return [sector for sector in self.mca.sectors if "technologies" in dir(sector)]
-        # return [
-        #     {"name": "residential", "technologies": [1, 2, 3]},
-        #     {"name": "power", "technologies": [1, 2, 3]},
-        #     {"name": "gas", "technologies": [1, 2, 3]},
-        # ]
+        return [
+            sector for sector in self.model.sectors if "technologies" in dir(sector)
+        ]
+
+    @property
+    def capacity(self):
+        return pd.read_csv("Results/MCACapacity.csv")
+
+    @property
+    def prices(self):
+        return pd.read_csv("Results/MCAPrices.csv")
 
 
 """Can update the values of the data arrays directly:
@@ -35,8 +45,3 @@ MaxCapacityAddition [0,100]
 MaxCapacityGrowth [0,100]
 TotalCapacityLimit [0,1000]
 """
-
-data = {
-    "linear": list(range(-10, 11)),
-}
-data["quadratic"] = [num * num for num in data["linear"]]

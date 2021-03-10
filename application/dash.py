@@ -3,47 +3,27 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
-import plotly.graph_objs as go
+from dash.exceptions import PreventUpdate
+import plotly.express as px
+from pathlib import Path
 
-from server.model import data, Model
+from server.model import Model
 
-app = dash.Dash(external_stylesheets=[dbc.themes.SKETCHY])
+app = dash.Dash(
+    external_stylesheets=[dbc.themes.FLATLY], suppress_callback_exceptions=True
+)
 
 model = Model()
 
-# path = Path("server") / "data" / "default"
-# list(path.glob("technodata/gas/*"))
-
-# Initially load only the input widgets to upload input data and select output path
-
-inputs = dbc.Card(  # Move this to a callback
-    [
-        dbc.FormGroup(
-            [
-                dbc.Label(sector.name),
-                dcc.Dropdown(
-                    id=sector.name,
-                    options=[
-                        {"label": col, "value": col} for col in sector.technologies
-                    ],
-                    value=list(sector.technologies)[0],
-                ),
-            ]
-        )
-        for sector in model.sectors
-    ],
-    body=True,
-)
-
-input_paths = dbc.Card(
+model_selection = dbc.Card(
     children=[
         dbc.FormGroup(
             [
-                dbc.Label("Select Ouput Folder"),
+                dbc.Label("Select Output Folder"),
                 dcc.Input(
                     id="output-path",
                     type="text",
-                    placeholder=__file__,
+                    placeholder="Results",
                 ),
             ]
         ),
@@ -52,116 +32,101 @@ input_paths = dbc.Card(
                 dbc.Label("Select Model"),
                 dcc.Dropdown(
                     id="model",
-                    options=[{"label": "default", "value": "default"}],
-                    value="default",
+                    options=[{"label": model, "value": model} for model in model.names],
+                    value=model.names[0],
                 ),
             ]
         ),
-    ]
-)
-
-toy_inputs = dbc.Card(
-    [
-        dbc.FormGroup(
-            [
-                dbc.Label("X variable"),
-                dcc.Dropdown(
-                    id="x-variable",
-                    options=[{"label": col, "value": col} for col in data.keys()],
-                    value=list(data.keys())[0],
-                ),
-            ]
+        dbc.Button(
+            "Select Model", color="primary", block=False, id="model-select-button"
         ),
-        dbc.FormGroup(
-            [
-                dbc.Label("Y variable"),
-                dcc.Dropdown(
-                    id="y-variable",
-                    options=[{"label": col, "value": col} for col in data.keys()],
-                    value=list(data.keys())[1],
-                ),
-            ]
-        ),
-        dbc.FormGroup(
-            [
-                dbc.Label("Number of Points"),
-                dbc.Input(
-                    id="point-count",
-                    type="number",
-                    value=11,
-                    min=1,
-                    max=len(data["linear"]),
-                ),
-            ]
-        ),
-        dbc.Button("Run Model", color="primary", block=True, id="run-button"),
     ],
     body=True,
 )
 
-navbar = dbc.Nav(
-    className="nav nav-pills",
-    children=[
-        dbc.NavItem(
-            html.Div([dbc.NavLink("About", href="/", id="about-popover", active=True)])
-        ),
-    ],
-)
-
 app.layout = dbc.Container(
-    [
-        navbar,
+    fluid=True,
+    children=[
+        # navbar,
         html.H1("MUSE Dashboard"),
         html.Hr(),
-        input_paths,
-        dbc.Col([inputs], align="left", md=4),
-        dbc.Row(
-            [
-                dbc.Col(toy_inputs, md=4),
-                dbc.Col(
-                    dcc.Graph(id="cluster-graph"),
-                    md=6,
-                ),
-            ],
-            align="center",
-        ),
+        model_selection,
+        dbc.Row([dbc.Col(id="input-values")]),
+        dbc.Row([dbc.Col(id="capacity-graphs")]),
+        dbc.Row([dbc.Col(id="prices-graphs")]),
     ],
-    className="m-5",
-    fluid=True,
 )
 
 
 @app.callback(
-    Output("cluster-graph", "figure"),
-    [Input("run-button", "n_clicks")],
+    Output("input-values", "children"),
+    [Input("model-select-button", "n_clicks")],
     [
-        State("x-variable", "value"),
-        State("y-variable", "value"),
-        State("point-count", "value"),
+        State("model", "value"),
+        State("output-path", "value"),
     ],
 )
-def make_graph(n, x, y, n_points):
-    # Do not run on startup
-    if not n:
-        return go.Figure()
+def select_model(n_clicks, model_name, output_path):
+    if n_clicks is None:
+        raise PreventUpdate
 
-    midpoint = int(len(data[x]) // 2)
-    minmax = int(n_points // 2)
-    left = midpoint - minmax
-    right = midpoint + minmax + n_points % 2
+    model.select(model_name)
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=data[x][left:right],
-            y=data[y][left:right],
-            mode="markers",
-            marker={"size": 8},
-        )
+    return [
+        dbc.CardGroup(
+            [
+                dbc.Card(
+                    body=True,
+                    children=[
+                        dbc.Label(sector.name),
+                        dcc.Dropdown(
+                            id=sector.name,
+                            options=[
+                                {"label": col, "value": col}
+                                for col in sector.technologies
+                            ],
+                            value=list(sector.technologies)[0],
+                        ),
+                    ],
+                )
+                for sector in model.sectors
+            ],
+        ),
+        dbc.Button("Run Model", color="primary", block=True, id="run-button"),
+    ]
+
+
+@app.callback(
+    Output("capacity-graphs", "children"),
+    Output("prices-graphs", "children"),
+    Input("run-button", "n_clicks"),
+)
+def make_graphs(n_clicks):
+    if n_clicks is None:
+        raise PreventUpdate
+
+    model.run()
+
+    fig = px.bar(
+        model.capacity,
+        x="year",
+        y="capacity",
+        color="technology",
+        facet_col="sector",
     )
+    fig.update_yaxes(matches=None)
+    fig.update_yaxes(showticklabels=True)
+    capacity_figures = [dcc.Graph(figure=fig)]
 
-    fig.update_layout(
-        title=f"{x} vs {y} Count {n_points}", xaxis_title=x, yaxis_title=y
+    fig = px.bar(
+        model.prices,
+        x="year",
+        y="prices",
+        color="commodity",
+        facet_col="commodity",
     )
+    fig.update_yaxes(matches=None)
+    fig.update_yaxes(showticklabels=True)
+    prices_figures = [dcc.Graph(figure=fig)]
 
-    return fig
+    return capacity_figures, prices_figures
