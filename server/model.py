@@ -5,7 +5,7 @@ import pandas as pd
 from muse.mca import MCA
 import muse.examples
 from muse.investments import LinearProblemError
-from muse.readers.toml import read_settings
+import muse.defaults
 
 from settings.config import MODEL_NAMES
 
@@ -28,7 +28,7 @@ class Model:
             path=Path().absolute() / "data" / name,
             overwrite=True,
         )
-        self.output_path = self.path.parent / "Results"
+        self.output_path = self.path.parent / muse.defaults.DEFAULT_OUTPUT_DIRECTORY
         self.load()
         self.technodata = {}
         for sec in self.sectors:
@@ -39,22 +39,10 @@ class Model:
         self.agents = pd.read_csv(self.path / "technodata" / "Agents.csv")
 
     def load(self):
-        settings = read_settings(self.path / "settings.toml")
+        relative_path = self.output_path.relative_to(Path().absolute())
+        muse.defaults.DEFAULT_OUTPUT_DIRECTORY = relative_path
 
-        def prepend_path(outputs):
-            for index, output in enumerate(outputs):
-                relative_path = Path(output["filename"]).relative_to(Path().absolute())
-                outputs[index]["filename"] = self.path.parent / relative_path
-
-        prepend_path(settings.outputs)
-        for sector in settings.sectors:
-            if type(sector) == list:
-                continue
-            if "outputs" not in dir(sector):
-                continue
-            prepend_path(sector.outputs)
-
-        self.model = MCA.factory(settings)
+        self.model = MCA.factory(self.path / "settings.toml")
 
     def run(self):
         for sec in self.sectors:
@@ -63,6 +51,7 @@ class Model:
                 self.path / "technodata" / sector / "Technodata.csv"
             )
         self.load()
+
         try:
             self.model.run()
         except LinearProblemError as err:
