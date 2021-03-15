@@ -1,13 +1,13 @@
 from pathlib import Path
 
-debug = True
-host = "127.0.0.1"
-port = 8080
+DEBUG = True
+HOST = "127.0.0.1"
+PORT = 8080
 TITLE = "MUSE Dashboard"
 MODEL_NAMES = ["default", "multiple-agents", "medium", "minimum-service", "trade"]
 ASSETS_FOLDER = Path().absolute() / "application" / "static"
 
-technologies = {
+TECHNOLOGIES = {
     "UtilizationFactor": [0, 1],
     "cap_par": [0, 100],
     "MaxCapacityAddition": [0, 100],
@@ -15,7 +15,7 @@ technologies = {
     "TotalCapacityLimit": [0, 1000],
 }
 
-objectives = {
+OBJECTIVES = {
     "Objective1": [
         "comfort",
         "efficiency",
