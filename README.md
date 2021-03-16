@@ -12,3 +12,7 @@ python run.py
 ```
 
 The app will be available at http://localhost:8080
+
+# Funding
+
+This research received funding from the FCDO Climate Compatible Growth Project.
