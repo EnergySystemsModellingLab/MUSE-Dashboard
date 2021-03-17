@@ -5,10 +5,9 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State, ALL
 from dash.exceptions import PreventUpdate
 import plotly.express as px
-from pathlib import Path
 
 from server.model import Model
-from settings.config import TITLE, ASSETS_FOLDER, technologies, objectives
+from settings.config import TITLE, ASSETS_FOLDER, MODEL_NAMES, TECHNOLOGIES, OBJECTIVES
 
 
 app = dash.Dash(
@@ -18,9 +17,10 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
 )
 
-model = Model()
+model = Model()  # Global variable: should be reimplemented for production server
 
 
+# Navbar across the top of the page. Includes logo and dropdown to select model
 navbar = dbc.Navbar(
     color="primary",
     dark=True,
@@ -34,13 +34,15 @@ navbar = dbc.Navbar(
         dbc.Col(
             dcc.Dropdown(
                 id="model-dropdown",
-                options=[{"label": model, "value": model} for model in model.names],
+                options=[{"label": model, "value": model} for model in MODEL_NAMES],
                 placeholder="Select a Model",
             )
         ),
     ],
 )
 
+# Master layout for the whole dashboard. Includes the navbar and a container that holds
+# loading spinners and space for the inputs and graphs.
 app.layout = html.Div(
     children=[
         navbar,
@@ -49,8 +51,7 @@ app.layout = html.Div(
             fluid=True,
             children=[
                 dbc.Spinner(dbc.Row([dbc.Col(id="input-values")]), size="lg"),
-                dbc.Spinner(dbc.Row([dbc.Col(id="capacity-graphs")]), size="lg"),
-                dbc.Row([dbc.Col(id="prices-graphs")]),
+                dbc.Spinner(dbc.Row([dbc.Col(id="graphs")]), size="lg"),
             ],
         ),
     ]
@@ -61,7 +62,23 @@ app.layout = html.Div(
     Output("input-values", "children"),
     Input("model-dropdown", "value"),
 )
-def select_model(model_name):
+def select_model(model_name) -> list:
+    """Populate the input data fields depending on the selected model.
+
+    First triggered when a model is selected from the dropdown in the navbar.
+    Loads an example MUSE model and populates the cards to edit input values.
+    Does not run on startup.
+
+    Args:
+        model_name (str): The name of the selected model. From the dropdown.
+
+    Returns:
+        children (list): The children of the `input-values` Column. Contains:
+            - A CardGroup for input values (technologies)
+            - A CardGroup for agent values (objectives)
+            - A Button to run the model using values within the CardGroup fields.
+    """
+    # Do not run on startup
     if model_name is None:
         raise PreventUpdate
 
@@ -101,7 +118,7 @@ def select_model(model_name):
                                 ),
                             ],
                         )
-                        for technology, value_range in technologies.items()
+                        for technology, value_range in TECHNOLOGIES.items()
                     ],
                 )
                 for sector in model.sectors
@@ -116,7 +133,7 @@ def select_model(model_name):
                         dcc.Dropdown(
                             options=[
                                 {"label": objective, "value": objective}
-                                for objective in objectives["Objective1"]
+                                for objective in OBJECTIVES["Objective1"]
                             ],
                             value=agent["Objective1"],
                             id={
@@ -135,24 +152,43 @@ def select_model(model_name):
 
 
 @app.callback(
-    Output("capacity-graphs", "children"),
-    Output("prices-graphs", "children"),
+    Output("graphs", "children"),
     Input("run-button", "n_clicks"),
     State({"type": "input_value", "index": ALL}, "value"),
     State({"type": "agent_value", "index": ALL}, "value"),
 )
-def make_graphs(n_clicks, input_values, agent_values):
+def make_graphs(n_clicks, input_values, agent_values) -> list:
+    """Run the MUSE simulation and generate plots.
+
+    First triggered when the Run Model button is clicked
+    Loads an example MUSE model and populates the cards to edit input values.
+    Does not run on startup.
+
+    Args:
+        n_clicks (int): Number of times the run button is clicked.
+            A change in this value triggers this callback
+        input_values (list): A list of the input values.
+            The order is determined by looping over sectors and technologies.
+        agent_values (list): A list of the agent (objective) values.
+            The order is determined by looping over agents.
+
+    Returns:
+        children (list): The children of the `graphs` column. Contains:
+            - An alert for when the simulation cannot be completed
+            - A Plotly Figure with the capacity graphs
+            - A Plotly Figure with the prices graphs
+    """
     if n_clicks is None:
         raise PreventUpdate
 
     # Update input data files
     i = 0
     for sector in model.sectors:
-        for technology in technologies.keys():
+        for technology in TECHNOLOGIES.keys():
             model.technodata[sector.name][technology].iloc[-1] = input_values[i]
             i += 1
     for index, agent in model.agents.iterrows():
-        agent["Objective1"] = agent_values[index]
+        model.agents["Objective1"].iloc[index] = agent_values[index]
 
     result = model.run()
     alert = None
@@ -168,7 +204,7 @@ def make_graphs(n_clicks, input_values, agent_values):
     )
     fig.update_yaxes(matches=None)
     fig.update_yaxes(showticklabels=True)
-    capacity_figures = [html.Br(), alert, dcc.Graph(figure=fig)]
+    children = [html.Br(), alert, dcc.Graph(figure=fig)]
 
     fig = px.bar(
         model.prices,
@@ -179,6 +215,6 @@ def make_graphs(n_clicks, input_values, agent_values):
     )
     fig.update_yaxes(matches=None)
     fig.update_yaxes(showticklabels=True)
-    prices_figures = [dcc.Graph(figure=fig)]
+    children.append(dcc.Graph(figure=fig))
 
-    return capacity_figures, prices_figures
+    return children

@@ -4,5 +4,4 @@ __pycache__/
 *$py.class
 
 # Results of running model
-Results/*
-model/*
+data/*
