@@ -13,7 +13,6 @@ python run.py
 
 The app will be available at http://localhost:8080
 
-
 ### Current Limitations and Improvements required for productionising:
 
  - The simulation is slow to run, so there is significant time delay between running the model and the results appearing. This could be improved by caching results.
@@ -27,3 +26,7 @@ The app will be available at http://localhost:8080
  - The dashboard itself does not have any tests. Only the interface with the model does. They can be run by running `pytest` in an activated virtual environment. There are no automated tests on GiHub.
 
  - For a one-click executable, look into pyinstaller. Note that the `app.run_server` function in `run.py` is an endless loop, so this needs to be navigated for any executable to also launch a web browser.
+
+# Funding
+
+This research received funding from the FCDO Climate Compatible Growth Project.
