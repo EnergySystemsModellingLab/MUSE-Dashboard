@@ -1,3 +1,4 @@
 dash
 dash-bootstrap-components
 git+https://github.com/SGIModel/StarMuse.git#egg=StarMUSE
+mypy_extensions
